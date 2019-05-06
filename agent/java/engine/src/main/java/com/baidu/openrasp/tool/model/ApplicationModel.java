@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@
 
 package com.baidu.openrasp.tool.model;
 
+import com.baidu.openrasp.HookHandler;
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by tyy on 18-8-13.
@@ -25,25 +29,70 @@ import java.util.HashMap;
  */
 public class ApplicationModel {
 
-    private static HashMap<String, String> applicationInfo = new HashMap<String, String>(8);
+    private static Map<String, String> applicationInfo;
 
-    public static void init(String serverName, String version) {
-        applicationInfo.put("server", serverName);
-        applicationInfo.put("version", version);
-        applicationInfo.put("os", System.getProperty("os.name"));
+    private static Map<String, String> systemEnvInfo;
+
+    static {
+        systemEnvInfo = System.getenv();
+        if (systemEnvInfo == null) {
+            systemEnvInfo = new HashMap<String, String>();
+        }
+        applicationInfo = new HashMap<String, String>(8);
+        String serverName = System.getProperty("os.name");
+        if (serverName != null && serverName.startsWith("Linux")) {
+            applicationInfo.put("os", "Linux");
+        } else if (serverName != null && serverName.startsWith("Windows")) {
+            applicationInfo.put("os", "Windows");
+        } else if (serverName != null && serverName.startsWith("Mac")) {
+            applicationInfo.put("os", "Mac");
+        } else {
+            applicationInfo.put("os", serverName);
+        }
         applicationInfo.put("language", "java");
+        applicationInfo.put("server", "");
+        applicationInfo.put("version", "");
+        applicationInfo.put("extra", "");
     }
 
-    public static HashMap<String, String> getApplicationInfo() {
+    public static synchronized void setServerInfo(String serverName, String version) {
+        serverName = (serverName == null ? "" : serverName);
+        version = (version == null ? "" : version);
+        applicationInfo.put("server", serverName);
+        applicationInfo.put("version", version);
+        HookHandler.LOGGER.info("detect server: " + serverName + "/" + version);
+    }
+
+    public static synchronized void setExtraInfo(String extra, String extraVersion) {
+        extra = (extra == null ? "" : extra);
+        applicationInfo.put("extra", extra);
+        extraVersion = (extraVersion == null ? "" : extraVersion);
+        applicationInfo.put("extraVersion", extraVersion);
+        HookHandler.LOGGER.info("detect extra server info: " + extra);
+    }
+
+    public static Map<String, String> getApplicationInfo() {
         return applicationInfo;
     }
 
+    public static Map<String, String> getSystemEnv() {
+        return systemEnvInfo;
+    }
+
     public static String getVersion() {
-        return applicationInfo.get("version");
+        String result = applicationInfo.get("version");
+        if (StringUtils.isEmpty(result)) {
+            result = applicationInfo.get("extraVersion");
+        }
+        return result;
     }
 
     public static String getServerName() {
-        return applicationInfo.get("server");
+        String result = applicationInfo.get("server");
+        if (StringUtils.isEmpty(result)) {
+            result = applicationInfo.get("extra");
+        }
+        return result;
     }
 
 }

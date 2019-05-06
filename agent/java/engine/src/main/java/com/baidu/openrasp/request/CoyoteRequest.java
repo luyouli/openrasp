@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -279,6 +279,26 @@ public class CoyoteRequest extends AbstractRequest {
      */
     @Override
     public String getClinetIp() {
+        return null;
+    }
+
+    /**
+     * (none-javadoc)
+     *
+     * @see AbstractRequest#getContentType()
+     */
+    @Override
+    public String getContentType() {
+        return null;
+    }
+
+    /**
+     * (none-javadoc)
+     *
+     * @see AbstractRequest#getCharacterEncoding()
+     */
+    @Override
+    public String getCharacterEncoding() {
         return null;
     }
 }

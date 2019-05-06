@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,15 @@
 package com.baidu.openrasp.hook.file;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.hook.AbstractClassHook;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.plugin.js.engine.JSContext;
 import com.baidu.openrasp.plugin.js.engine.JSContextFactory;
-import com.baidu.openrasp.tool.annotation.HookAnnotation;
 import com.baidu.openrasp.tool.FileUtil;
+import com.baidu.openrasp.tool.StackTrace;
+import com.baidu.openrasp.tool.annotation.HookAnnotation;
+import com.google.gson.Gson;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 import javassist.NotFoundException;
@@ -30,10 +33,11 @@ import org.mozilla.javascript.Scriptable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Created by lxk on 6/8/17.
- *
+ * <p>
  * 文件输出流 hook 点
  */
 @HookAnnotation
@@ -79,10 +83,17 @@ public class FileOutputStreamHook extends AbstractClassHook {
         if (file != null) {
             JSContext cx = JSContextFactory.enterAndInitContext();
             Scriptable params = cx.newObject(cx.getScope());
-            params.put("name", params, file.getName());
+            params.put("path", params, file.getName());
             params.put("realpath", params, FileUtil.getRealPath(file));
-            params.put("content", params, "");
-            HookHandler.doCheck(CheckParameter.Type.WRITEFILE, params);
+            List<String> stackInfo = StackTrace.getStackTraceArray(Config.REFLECTION_STACK_START_INDEX,
+                    Config.getConfig().getPluginMaxStack());
+            Scriptable stackArray = cx.newArray(cx.getScope(), stackInfo.toArray());
+            params.put("stack", params, stackArray);
+            String hookType = CheckParameter.Type.WRITEFILE.getName();
+            //如果在lru缓存中不进检测
+            if (!Config.commonLRUCache.isContainsKey(hookType + new Gson().toJson(params))) {
+                HookHandler.doCheck(CheckParameter.Type.WRITEFILE, params);
+            }
         }
     }
 

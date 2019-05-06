@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,32 +15,15 @@
  */
 
 #include "openrasp_ini.h"
-#include <regex>
 #include <limits>
 
+#ifdef PHP_DEBUG
+#define MIN_HEARTBEAT_INTERVAL (10)
+#else
+#define MIN_HEARTBEAT_INTERVAL (60)
+#endif
+
 Openrasp_ini openrasp_ini;
-
-ZEND_INI_MH(OnUpdateOpenraspDoubleGEZero)
-{
-    double tmp = zend_string_to_double(new_value, new_value_length);
-    if (tmp < 0 || tmp > std::numeric_limits<double>::max())
-    {
-        return FAILURE;
-    }
-    *reinterpret_cast<double *>(mh_arg1) = tmp;
-    return SUCCESS;
-}
-
-ZEND_INI_MH(OnUpdateOpenraspIntGEZero)
-{
-    long tmp = zend_atol(new_value, new_value_length);
-    if (tmp < 0 || tmp > std::numeric_limits<unsigned int>::max())
-    {
-        return FAILURE;
-    }
-    *reinterpret_cast<int *>(mh_arg1) = tmp;
-    return SUCCESS;
-}
 
 ZEND_INI_MH(OnUpdateOpenraspCString)
 {
@@ -55,19 +38,14 @@ ZEND_INI_MH(OnUpdateOpenraspBool)
     return SUCCESS;
 }
 
-ZEND_INI_MH(OnUpdateOpenraspSet)
+ZEND_INI_MH(OnUpdateOpenraspHeartbeatInterval)
 {
-    std::unordered_set<std::string> *p = reinterpret_cast<std::unordered_set<std::string> *>(mh_arg1);
-    p->clear();
-    if (new_value)
+    long tmp = zend_atol(new_value, new_value_length);
+    if (tmp < MIN_HEARTBEAT_INTERVAL || tmp > 1800)
     {
-        std::regex re(R"([\s,]+)");
-        const std::cregex_token_iterator end;
-        for (std::cregex_token_iterator it(new_value, new_value + new_value_length, re, -1); it != end; it++)
-        {
-            p->insert(it->str());
-        }
+        return FAILURE;
     }
+    *reinterpret_cast<int *>(mh_arg1) = tmp;
     return SUCCESS;
 }
 

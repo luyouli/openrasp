@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 
 package com.baidu.openrasp.tool;
 
-import com.baidu.openrasp.transformer.CustomClassTransformer;
+import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
+import com.baidu.openrasp.tool.model.ApplicationModel;
 import org.apache.log4j.Logger;
 
 import java.lang.reflect.Field;
@@ -73,8 +76,8 @@ public class Reflection {
     /**
      * 反射获取父类对象的字段包括私有的
      *
-     * @param paramClass    被提取字段的对象
-     * @param fieldName 字段名称
+     * @param paramClass 被提取字段的对象
+     * @param fieldName  字段名称
      * @return 字段的值
      */
     public static Object getSuperField(Object paramClass, String fieldName) {
@@ -84,8 +87,9 @@ public class Reflection {
             field.setAccessible(true);
             object = field.get(paramClass);
         } catch (Exception e) {
-
-            LOGGER.error(e.getMessage());
+            String message = e.getMessage();
+            int errorCode = ErrorType.RUNTIME_ERROR.getCode();
+            LOGGER.error(CloudUtils.getExceptionObject(message, errorCode), e);
         }
         return object;
     }
@@ -101,20 +105,14 @@ public class Reflection {
      */
     public static Object invokeStaticMethod(String className, String methodName, Class[] paramTypes, Object... parameters) {
         try {
-            Class clazz = null;
-            ClassLoader loader = CustomClassTransformer.getClassLoader(className);
-            if (loader != null) {
-                clazz = loader.loadClass(className);
-            } else {
-                clazz = Class.forName(className);
-            }
+            Class clazz = Class.forName(className);
             return invokeMethod(null, clazz, methodName, paramTypes, parameters);
         } catch (Exception e) {
             return null;
         }
     }
 
-    private static Object invokeMethod(Object object, Class clazz, String methodName, Class[] paramTypes, Object... parameters) {
+    public static Object invokeMethod(Object object, Class clazz, String methodName, Class[] paramTypes, Object... parameters) {
         try {
             Method method = clazz.getMethod(methodName, paramTypes);
             if (!method.isAccessible()) {
@@ -122,8 +120,9 @@ public class Reflection {
             }
             return method.invoke(object, parameters);
         } catch (Exception e) {
-            LOGGER.warn(e.getMessage());
+            int errorCode = ErrorType.REFLECTION_ERROR.getCode();
+            HookHandler.LOGGER.warn(CloudUtils.getExceptionObject("reflection call failed", errorCode), e);
+            return null;
         }
-        return null;
     }
 }

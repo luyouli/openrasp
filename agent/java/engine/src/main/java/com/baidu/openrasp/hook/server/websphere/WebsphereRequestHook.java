@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ import javassist.NotFoundException;
 import java.io.IOException;
 
 /**
- * @Description: websphere请求hook点
  * @author anyang
+ * @Description: websphere请求hook点
  * @date 2018/8/13 15:13
  */
 @HookAnnotation

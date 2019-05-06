@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,9 +36,9 @@ public class HttpClient {
 
     /**
      * 用于post推送報警的http client
-     *
      */
-    public HttpClient() {}
+    public HttpClient() {
+    }
 
     protected void request(String requestUrl, String attackInfoJson, int connectionTimeout, int readTimeout) {
         HttpURLConnection httpURLConnection = null;
@@ -62,13 +62,13 @@ public class HttpClient {
             wr.close();
             int responseCode = httpURLConnection.getResponseCode();
             if (responseCode >= 300) {
-                System.out.println("[OpenRASP] " + responseCode + "return while posting attack info to " + requestUrl);
+                System.out.println("[OpenRASP] Unexpected HTTP status code " + responseCode + " while posting attack event logs to " + requestUrl);
             }
         } catch (MalformedURLException me) {
-            System.out.println("[OpenRASP] " + me.getMessage());
+            System.out.println("[OpenRASP] Bad URL exceptions: " + me.getMessage());
             me.printStackTrace();
         } catch (Exception e) {
-            System.out.println("[OpenRASP] " + e.getMessage());
+            System.out.println("[OpenRASP] Request exceptions: " + e.getMessage());
             e.printStackTrace();
         } finally {
             if (httpURLConnection != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package com.baidu.openrasp;
 
-import com.baidu.openrasp.hook.AbstractClassHook;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.messaging.LogConfig;
 import com.baidu.openrasp.plugin.checker.CheckerManager;
 import com.baidu.openrasp.plugin.js.engine.JsPluginManager;
-import com.baidu.openrasp.tool.FileUtil;
+import com.baidu.openrasp.tool.model.BuildRASPModel;
 import com.baidu.openrasp.transformer.CustomClassTransformer;
 import org.apache.log4j.Logger;
 
@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.net.URL;
-import java.util.LinkedList;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
@@ -39,12 +38,13 @@ import java.util.jar.Manifest;
  */
 public class EngineBoot implements Module {
 
-    private static String projectVersion;
-    private static String buildTime;
-    private static String gitCommit;
+    private String projectVersion;
+    private String buildTime;
+    private String gitCommit;
+    private CustomClassTransformer transformer;
 
     @Override
-    public void start(String agentArg, Instrumentation inst) throws Exception {
+    public void start(String mode, Instrumentation inst) throws Exception {
         System.out.println("\n\n" +
                 "   ____                   ____  ___   _____ ____ \n" +
                 "  / __ \\____  ___  ____  / __ \\/   | / ___// __ \\\n" +
@@ -52,7 +52,7 @@ public class EngineBoot implements Module {
                 "/ /_/ / /_/ /  __/ / / / _, _/ ___ |___/ / ____/ \n" +
                 "\\____/ .___/\\___/_/ /_/_/ |_/_/  |_/____/_/      \n" +
                 "    /_/                                          \n\n");
-        if (!loadConfig(FileUtil.getBaseDir())) {
+        if (!loadConfig()) {
             return;
         }
         readVersion();
@@ -64,13 +64,18 @@ public class EngineBoot implements Module {
                 + buildTime + ")]";
         System.out.println(message);
         Logger.getLogger(EngineBoot.class.getName()).info(message);
-        HookHandler.enableHook.set(true);
     }
 
     @Override
-    public void release() {
+    public void release(String mode) {
+        if (transformer != null) {
+            transformer.release();
+        }
         JsPluginManager.release();
         CheckerManager.release();
+        String message = "OpenRASP Engine Released [" + projectVersion + " (build: GitCommit=" + gitCommit + " date="
+                + buildTime + ")]";
+        System.out.println(message);
     }
 
     /**
@@ -78,9 +83,12 @@ public class EngineBoot implements Module {
      *
      * @return 配置是否成功
      */
-    private static boolean loadConfig(String baseDir) throws IOException {
-        LogConfig.completeLogConfig(baseDir);
-
+    private boolean loadConfig() throws Exception {
+        LogConfig.ConfigFileAppender();
+        //单机模式下动态添加获取删除syslog
+        if (!CloudUtils.checkCloudControlEnter()) {
+            LogConfig.syslogManager();
+        }
         return true;
     }
 
@@ -89,29 +97,12 @@ public class EngineBoot implements Module {
      *
      * @param inst 用于管理字节码转换器
      */
-    private static void initTransformer(Instrumentation inst) throws UnmodifiableClassException {
-        LinkedList<Class> retransformClasses = new LinkedList<Class>();
-        CustomClassTransformer customClassTransformer = new CustomClassTransformer();
-        inst.addTransformer(customClassTransformer, true);
-        Class[] loadedClasses = inst.getAllLoadedClasses();
-        for (Class clazz : loadedClasses) {
-            for (final AbstractClassHook hook : customClassTransformer.getHooks()) {
-                if (hook.isClassMatched(clazz.getName().replace(".", "/"))) {
-                    if (inst.isModifiableClass(clazz) && !clazz.getName().startsWith("java.lang.invoke.LambdaForm")) {
-                        retransformClasses.add(clazz);
-                    }
-                }
-            }
-        }
-        // hook已经加载的类
-        Class[] classes = new Class[retransformClasses.size()];
-        retransformClasses.toArray(classes);
-        if (classes.length > 0) {
-            inst.retransformClasses(classes);
-        }
+    private void initTransformer(Instrumentation inst) throws UnmodifiableClassException {
+        transformer = new CustomClassTransformer(inst);
+        transformer.retransform();
     }
 
-    private static void readVersion() throws IOException {
+    private void readVersion() throws IOException {
         Class clazz = EngineBoot.class;
         String className = clazz.getSimpleName() + ".class";
         String classPath = clazz.getResource(className).toString();
@@ -125,6 +116,8 @@ public class EngineBoot implements Module {
         projectVersion = (projectVersion == null ? "UNKNOWN" : projectVersion);
         buildTime = (buildTime == null ? "UNKNOWN" : buildTime);
         gitCommit = (gitCommit == null ? "UNKNOWN" : gitCommit);
+        //缓存rasp的build信息
+        BuildRASPModel.initRaspInfo(projectVersion, buildTime, gitCommit);
     }
 
 }

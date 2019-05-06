@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package com.baidu.openrasp.messaging;
+
+import org.apache.log4j.helpers.LogLog;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -51,18 +53,19 @@ public class SyslogTcpWriter extends OutputStreamWriter {
         this.syslogFacility = syslogFacility;
     }
 
-    public
-    void setLevel(int level) {
+    public void setLevel(int level) {
         this.level = level;
     }
 
-    public
-    void setSyslogFacility(int syslogFacility) {
+    public void setSyslogFacility(int syslogFacility) {
         this.syslogFacility = syslogFacility;
     }
 
-    public
-    void writeString(String string) throws IOException{
-        write("<"+(syslogFacility | level)+">" + string);
+    public void writeString(String string) {
+        try {
+            write("<" + (syslogFacility | level) + ">" + string);
+        } catch (IOException e) {
+            LogLog.error("Failed to write [" + string + "].", e);
+        }
     }
 }

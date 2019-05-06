@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.plugin.info.AttackInfo;
 import com.baidu.openrasp.plugin.info.EventInfo;
+import com.google.gson.Gson;
 import org.apache.log4j.Logger;
 import org.mozilla.javascript.*;
 
@@ -153,6 +154,25 @@ public class JSContext extends Context {
                 algorithm = "";
             }
             checkResults.add(new AttackInfo(parameter, action, message, name, algorithm, confidence));
+        }
+        // 检测无威胁的文件相关请求加入lru缓存
+        if (checkResults.isEmpty()) {
+            String hookType = parameter.getType().getName();
+            if ("directory".equals(hookType)) {
+                if (Config.commonLRUCache.maxSize() != 0) {
+                    Config.commonLRUCache.put(hookType + new Gson().toJson(parameter.getParams()), null);
+                }
+            }
+            if ("readFile".equals(hookType)) {
+                if (Config.commonLRUCache.maxSize() != 0) {
+                    Config.commonLRUCache.put(hookType + new Gson().toJson(parameter.getParams()), null);
+                }
+            }
+            if ("writeFile".equals(hookType)) {
+                if (Config.commonLRUCache.maxSize() != 0) {
+                    Config.commonLRUCache.put(hookType + new Gson().toJson(parameter.getParams()), null);
+                }
+            }
         }
         return checkResults;
     }

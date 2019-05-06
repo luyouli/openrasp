@@ -19,7 +19,6 @@ config.status
 config.sub
 configure
 configure.in
-include
 install-sh
 libtool
 ltmain.sh
@@ -43,3 +42,4 @@ error-output.txt
 .DS_Store
 test.db
 !tests/include/
+!third_party/yaml-cpp/include/

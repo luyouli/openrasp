@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "openrasp.h"
 #include <string>
 #include <vector>
+#include <map>
 #include <functional>
 #include <time.h>
 
@@ -34,15 +35,25 @@ extern "C"
 }
 #endif
 
-long fetch_time_offset();
 const char *fetch_url_scheme(const char *filename);
-long get_file_st_ino(std::string filename);
-void format_debug_backtrace_str(zval *backtrace_str);
-void format_debug_backtrace_arr(zval *backtrace_arr);
+
 int recursive_mkdir(const char *path, int len, int mode);
-bool same_day_in_current_timezone(long src, long target, long offset);
-zend_string *openrasp_format_date(char *format, int format_len, time_t ts);
-void openrasp_pcre_match(zend_string *regex, zend_string *subject, zval *return_value);
-void openrasp_scandir(const std::string dir_abs, std::vector<std::string> &plugins, std::function<bool(const char *filename)> file_filter);
+bool get_entire_file_content(const char *file, std::string &content);
+void openrasp_scandir(const std::string dir_abs, std::vector<std::string> &plugins, std::function<bool(const char *filename)> file_filter, bool use_abs_path = false);
+
+std::vector<std::string> format_source_code_arr();
+void format_source_code_arr(zval *source_code_arr);
+std::vector<std::string> format_debug_backtrace_arr();
+void format_debug_backtrace_arr(zval *backtrace_arr);
+std::string format_debug_backtrace_str();
+void format_debug_backtrace_str(zval *backtrace_str);
+std::string json_encode_from_zval(zval *value);
+
+char *fetch_outmost_string_from_ht(HashTable *ht, const char *arKey);
+
+zend_string *fetch_request_body(size_t max_len);
+bool need_alloc_shm_current_sapi();
+std::string convert_to_header_key(char *key, size_t length);
+bool openrasp_parse_url(const std::string &origin_url, std::string &scheme, std::string &host, std::string &port);
 
 #endif

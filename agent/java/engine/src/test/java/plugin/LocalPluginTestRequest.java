@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -280,6 +280,25 @@ public class LocalPluginTestRequest extends AbstractRequest {
      */
     @Override
     public String getClinetIp() {
+        return null;
+    }
+
+    /**
+     * 获取请求的contentType
+     *
+     * @return contentType
+     */
+    @Override
+    public String getContentType() {
+        return null;
+    }
+
+    /**
+     * 返回body的编码类型
+     *
+     * @return CharacterEncoding
+     */
+    public String getCharacterEncoding(){
         return null;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ public class LinuxUninstallerFactory extends UninstallerFactory {
         }
         if (serverName.equals(RESIN)) {
             return new ResinUninstaller(serverName, serverRoot);
+        }
+        if (serverName.equals(WEBLOGIC)) {
+            return new WeblogicUninstaller(serverName, serverRoot);
         }
         System.out.println("Invalid server name: " + serverName);
         return null;

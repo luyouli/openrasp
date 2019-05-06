@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,8 @@ public class AlarmHttpAppender extends AppenderSkeleton {
     }
 
     @Override
-    public void close() {}
+    public void close() {
+    }
 
     @Override
     public boolean requiresLayout() {
@@ -60,7 +61,7 @@ public class AlarmHttpAppender extends AppenderSkeleton {
         cacheFlushTime = cacheFlushTime < DEFAULT_CACHE_FLUSH_TIME ? DEFAULT_CACHE_FLUSH_TIME : cacheFlushTime;
         maxCacheSize = maxCacheSize < EventCache.DEFAULT_MAX_SIZE ? EventCache.DEFAULT_MAX_SIZE : maxCacheSize;
         eventCache.setSize(maxCacheSize);
-        Timer timer = new Timer("async-http-appender-daemon",true);
+        Timer timer = new Timer("async-http-appender-daemon", true);
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -93,7 +94,7 @@ public class AlarmHttpAppender extends AppenderSkeleton {
 
     protected void subAppend(LoggingEvent event) {
         if (eventCache.addEvent(event)
-                || (httpClient instanceof AsyncHttpClient && ((AsyncHttpClient)httpClient).shouldSend())) {
+                || (httpClient instanceof AsyncHttpClient && ((AsyncHttpClient) httpClient).shouldSend())) {
             sendEventsAsync();
         }
     }

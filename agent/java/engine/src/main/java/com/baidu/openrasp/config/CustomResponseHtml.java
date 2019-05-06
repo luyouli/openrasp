@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package com.baidu.openrasp.config;
 
-import com.baidu.openrasp.exception.ConfigLoadException;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
+import com.baidu.openrasp.exceptions.ConfigLoadException;
 import com.baidu.openrasp.tool.filemonitor.FileScanListener;
 import com.baidu.openrasp.tool.filemonitor.FileScanMonitor;
 import com.fuxi.javaagent.contentobjects.jnotify.JNotifyException;
@@ -130,7 +132,9 @@ public class CustomResponseHtml extends FileScanListener {
                 try {
                     setContent(FileUtils.readFileToString(file));
                 } catch (IOException e) {
-                    Config.LOGGER.warn(file.getAbsoluteFile() + " update fail because:" + e.getMessage());
+                    String message = file.getAbsoluteFile() + " update fail";
+                    int errorCode = ErrorType.CONFIG_ERROR.getCode();
+                    Config.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
                 }
             } else {
                 setContent("");

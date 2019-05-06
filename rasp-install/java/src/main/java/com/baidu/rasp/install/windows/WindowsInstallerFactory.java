@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,10 @@ public class WindowsInstallerFactory extends InstallerFactory {
         if (serverName.equals(RESIN)) {
             return new ResinInstaller(serverName, serverRoot);
         }
-        System.out.println("Invalid server name: " + serverName);
+        if (serverName.equals(WEBLOGIC)) {
+            return new WeblogicInstaller(serverName, serverRoot);
+        }
+        System.out.println("Unexpected server name: " + serverName);
         return null;
     }
 }

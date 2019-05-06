@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,16 +26,16 @@ import static com.baidu.rasp.RaspError.E10002;
 import static com.baidu.rasp.RaspError.E10004;
 
 /**
- * @Description:
  * @author anyang
+ * @Description:
  * @date 2018/4/25 19:38
- *
  */
 public abstract class UninstallerFactory {
 
     protected static final String TOMCAT = "Tomcat";
     protected static final String JBOSS = "JBoss 4-6";
     protected static final String RESIN = "Resin";
+    protected static final String WEBLOGIC = "Weblogic";
 
     protected abstract Uninstaller getUninstaller(String serverName, String serverRoot);
 
@@ -49,6 +49,7 @@ public abstract class UninstallerFactory {
             System.out.println("List of currently supported servers are:");
             System.out.println("- " + TOMCAT);
             System.out.println("- " + RESIN);
+            System.out.println("- " + WEBLOGIC);
             System.out.println("- " + JBOSS + "\n");
             throw new RaspError(E10004 + serverRoot.getPath());
         }

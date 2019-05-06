@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package com.baidu.openrasp.hook.ssrf;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.tool.annotation.HookAnnotation;
 import javassist.CannotCompileException;
 import javassist.CtClass;
@@ -28,7 +30,7 @@ import java.net.URLConnection;
 
 /**
  * Created by tyy on 17-12-7.
- *
+ * <p>
  * jdk 中进行 http 请求的 hook 点
  */
 @HookAnnotation
@@ -41,7 +43,8 @@ public class URLConnectionHook extends AbstractSSRFHook {
      */
     @Override
     public boolean isClassMatched(String className) {
-        return "sun/net/www/protocol/http/HttpURLConnection".equals(className);
+        return "sun/net/www/protocol/http/HttpURLConnection".equals(className) ||
+                "weblogic/net/http/HttpURLConnection".equals(className);
     }
 
     /**
@@ -61,13 +64,15 @@ public class URLConnectionHook extends AbstractSSRFHook {
         try {
             if (urlConnection != null) {
                 url = urlConnection.getURL();
-
             }
         } catch (Exception e) {
-            HookHandler.LOGGER.warn(e.getMessage());
+            String message = e.getMessage();
+            int errorCode = ErrorType.HOOK_ERROR.getCode();
+            HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
         }
         if (url != null) {
-            checkHttpUrl(url.toString(), urlConnection.getURL().getHost(), "url_open_connection");
+            int port = urlConnection.getURL().getPort();
+            checkHttpUrl(url.toString(), urlConnection.getURL().getHost(), port > 0 ? ("" + port) : "", "url_open_connection");
         }
     }
 

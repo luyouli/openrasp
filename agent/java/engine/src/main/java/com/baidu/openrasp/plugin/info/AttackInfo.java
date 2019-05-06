@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,13 @@
 
 package com.baidu.openrasp.plugin.info;
 
+import com.baidu.openrasp.cloud.model.CloudCacheModel;
+import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.request.AbstractRequest;
 import com.baidu.openrasp.tool.OSUtil;
+import com.baidu.openrasp.tool.decompile.Decompiler;
+import com.baidu.openrasp.tool.model.ApplicationModel;
 
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -84,7 +88,7 @@ public class AttackInfo extends EventInfo {
 
         info.put("event_type", getType());
         // 攻击时间
-        info.put("event_time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(createTime));
+        info.put("event_time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(createTime));
         // 服务器host name
         info.put("server_hostname", OSUtil.getHostName());
         // 攻击类型
@@ -93,7 +97,7 @@ public class AttackInfo extends EventInfo {
         info.put("attack_params", parameter.getParams());
         // 攻击调用栈
         StackTraceElement[] trace = filter(new Throwable().getStackTrace());
-        info.put("stack_trace", stringify(trace));
+        info.put("stack_trace", stringify(trace) != null ? stringify(trace).trim() : null);
         // 检测插件
         info.put("plugin_name", this.pluginName);
         // 插件消息
@@ -104,7 +108,12 @@ public class AttackInfo extends EventInfo {
         info.put("intercept_state", this.action);
         // 检测算法
         info.put("plugin_algorithm", this.algorithm);
-
+        if (Config.getConfig().getCloudSwitch()) {
+            // raspId
+            info.put("rasp_id", CloudCacheModel.getInstance().getRaspId());
+            // appId
+            info.put("app_id", Config.getConfig().getCloudAppId());
+        }
         if (request != null) {
             // 请求ID
             info.put("request_id", request.getRequestId());
@@ -112,14 +121,17 @@ public class AttackInfo extends EventInfo {
             info.put("attack_source", request.getRemoteAddr());
             // 攻击真实IP
             info.put("client_ip", request.getClinetIp());
+            // 服务器ip
+            info.put("server_nic", OSUtil.getIpAddress());
             // 被攻击目标域名
             info.put("target", request.getServerName());
             // 被攻击目标IP
             info.put("server_ip", request.getLocalAddr());
             // 被攻击目标服务器类型和版本
-            Map<String, String> serverInfo = request.getServerContext();
-            info.put("server_type", serverInfo != null ? serverInfo.get("server") : null);
-            info.put("server_version", serverInfo != null ? serverInfo.get("version") : null);
+            info.put("server_type", ApplicationModel.getServerName());
+            info.put("server_version", ApplicationModel.getVersion());
+            //请求header
+            info.put("header", getRequestHeader(request));
             // 被攻击URL
             StringBuffer requestURL = request.getRequestURL();
             String queryString = request.getQueryString();
@@ -132,15 +144,21 @@ public class AttackInfo extends EventInfo {
             // 被攻击PATH
             info.put("path", request.getRequestURI());
             //请求方法
-            info.put("request_method", request.getMethod().toLowerCase());
-            // 用户代理
-            info.put("user_agent", request.getHeader("User-Agent"));
-            // 攻击的 Referrer 头
-            String referer = request.getHeader("Referer");
-            info.put("referer", referer == null ? "" : referer);
+            String method = request.getMethod();
+            info.put("request_method", method != null ? method.toLowerCase() : null);
+            //Java反编译开关打开时，启用
+            if (Config.getConfig().getDecompileEnable() && checkTomcatVersion()) {
+                info.put("source_code", Decompiler.getAlarmPoint(trace));
+            }
         }
 
         return info;
+    }
+
+    private boolean checkTomcatVersion() {
+        String javaVersion = System.getProperty("java.version");
+        return javaVersion != null && (javaVersion.startsWith("1.7")
+                || javaVersion.startsWith("1.8"));
     }
 
     @Override

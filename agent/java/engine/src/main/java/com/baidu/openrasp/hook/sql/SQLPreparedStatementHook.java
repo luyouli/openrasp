@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,6 +137,14 @@ public class SQLPreparedStatementHook extends AbstractSqlHook {
                 insertBefore(ctClass, "executeBatch", "()[I", checkSqlSrc);
             } catch (CannotCompileException e) {
                 insertBefore(ctClass, "executeBatchInternal", null, checkSqlSrc);
+            }
+            addCatch(ctClass, "execute", null);
+            addCatch(ctClass, "executeUpdate", null);
+            addCatch(ctClass, "executeQuery", null);
+            try {
+                addCatch(ctClass, "executeBatch", null);
+            } catch (CannotCompileException e) {
+                addCatch(ctClass, "executeBatchInternal", null);
             }
         } else if (SQL_TYPE_DB2.equals(this.type)) {
             checkSqlSrc = getInvokeStaticSrc(SQLStatementHook.class, "checkSQL",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package com.baidu.openrasp.plugin.checker.policy;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.plugin.info.EventInfo;
 import com.baidu.openrasp.plugin.info.SecurityPolicyInfo;
@@ -104,7 +106,9 @@ public class SqlConnectionChecker extends PolicyChecker {
                 }
             }
         } catch (Exception e) {
-            LOGGER.warn("check sql connection fail cause by:" + e.getMessage());
+            String message = "check sql connection fail";
+            int errorCode = ErrorType.PLUGIN_ERROR.getCode();
+            LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
         }
 
         boolean isSafe = checkUser(user, sqlType);
@@ -113,14 +117,14 @@ public class SqlConnectionChecker extends PolicyChecker {
                 alarmTimeCache.clear();
             }
             alarmTimeCache.put(url, System.currentTimeMillis());
-            String unsafeMessage = "Database security baseline - Connecting to a " + sqlType + 
-                " instance with high privileged account " + user + 
-                ", connectionString is " + urlWithoutParams;
+            String unsafeMessage = "Database security baseline - Connecting to a " + sqlType +
+                    " instance with high privileged account " + user +
+                    ", connectionString is " + urlWithoutParams;
             infos = new LinkedList<EventInfo>();
-            HashMap<String, String> params = new HashMap<String, String>(4);
+            HashMap<String, Object> params = new HashMap<String, Object>(4);
             params.put("server", sqlType);
-            params.put("url", urlWithoutParams);
-            params.put("user", user);
+            params.put("connectionString", urlWithoutParams);
+            params.put("username", user);
             infos.add(new SecurityPolicyInfo(SecurityPolicyInfo.Type.SQL_CONNECTION, unsafeMessage, true, params));
         }
 

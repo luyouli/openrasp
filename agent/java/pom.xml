@@ -10,7 +10,7 @@
 
     <groupId>com.baidu.openrasp</groupId>
     <artifactId>openrasp</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <scm>
@@ -29,7 +29,7 @@
             <dependency>
                 <groupId>com.baidu.openrasp</groupId>
                 <artifactId>rasp-boot</artifactId>
-                <version>1.0-SNAPSHOT</version>
+                <version>1.0.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -135,6 +135,10 @@
                                     <shadedPattern>com.baidu.openrasp</shadedPattern>
                                 </relocation>
                                 <relocation>
+                                    <pattern>org.yaml</pattern>
+                                    <shadedPattern>com.baidu.openrasp</shadedPattern>
+                                </relocation>
+                                <relocation>
                                     <pattern>org.apache.log4j</pattern>
                                     <shadedPattern>com.baidu.openrasp.log4j</shadedPattern>
                                 </relocation>
@@ -143,12 +147,32 @@
                                     <shadedPattern>log4j.rasp.configuration</shadedPattern>
                                 </relocation>
                                 <relocation>
+                                    <pattern>log4j.xml</pattern>
+                                    <shadedPattern>log4j.rasp.xml</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>log4j.properties</pattern>
+                                    <shadedPattern>log4j.rasp.properties</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>log4j.configuratorClass</pattern>
+                                    <shadedPattern>log4j.rasp.configuratorClass</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>log4j.defaultInitOverride</pattern>
+                                    <shadedPattern>log4j.rasp.defaultInitOverride</shadedPattern>
+                                </relocation>
+                                <relocation>
                                     <pattern>org.abego</pattern>
                                     <shadedPattern>com.baidu.openrasp.abego</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.antlr</pattern>
                                     <shadedPattern>com.baidu.openrasp.antlr</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.stringtemplate</pattern>
+                                    <shadedPattern>com.baidu.openrasp.stringtemplate</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.stringtemplate</pattern>
@@ -165,6 +189,10 @@
                                 <relocation>
                                     <pattern>org.mozilla</pattern>
                                     <shadedPattern>com.baidu.openrasp.org.mozilla</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.strobel</pattern>
+                                    <shadedPattern>com.baidu.openrasp.strobel</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>

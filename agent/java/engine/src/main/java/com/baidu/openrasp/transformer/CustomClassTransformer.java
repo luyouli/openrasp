@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,15 @@
 
 package com.baidu.openrasp.transformer;
 
+import com.baidu.openrasp.ModuleLoader;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.config.Config;
-import com.baidu.openrasp.hook.*;
+import com.baidu.openrasp.detector.ServerDetectorManager;
+import com.baidu.openrasp.hook.AbstractClassHook;
 import com.baidu.openrasp.tool.annotation.AnnotationScanner;
 import com.baidu.openrasp.tool.annotation.HookAnnotation;
+import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.LoaderClassPath;
@@ -29,10 +34,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
+import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
 import java.security.ProtectionDomain;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Set;
 
 /**
@@ -41,19 +48,44 @@ import java.util.Set;
 public class CustomClassTransformer implements ClassFileTransformer {
     public static final Logger LOGGER = Logger.getLogger(CustomClassTransformer.class.getName());
     private static final String SCAN_ANNOTATION_PACKAGE = "com.baidu.openrasp.hook";
-    private static ArrayList<String> list = new ArrayList<String>();
     private static HashMap<String, ClassLoader> classLoaderCache = new HashMap<String, ClassLoader>();
 
-    private HashSet<AbstractClassHook> hooks;
+    private Instrumentation inst;
+    private HashSet<AbstractClassHook> hooks = new HashSet<AbstractClassHook>();
+    private ServerDetectorManager serverDetector = ServerDetectorManager.getInstance();
 
-    static {
-        list.add("org/apache/catalina/util/ServerInfo");
-        list.add("org/apache/commons/fileupload/servlet/ServletFileUpload");
+    public CustomClassTransformer(Instrumentation inst) {
+        this.inst = inst;
+        inst.addTransformer(this, true);
+        addAnnotationHook();
     }
 
-    public CustomClassTransformer() {
-        hooks = new HashSet<AbstractClassHook>();
-        addAnnotationHook();
+    public void release() {
+        inst.removeTransformer(this);
+        try {
+            retransform();
+        } catch (UnmodifiableClassException e) {
+            int errorCode = ErrorType.HOOK_ERROR.getCode();
+            LOGGER.error(CloudUtils.getExceptionObject("retransform classes failed", errorCode), e);
+        }
+    }
+
+    public void retransform() throws UnmodifiableClassException {
+        LinkedList<Class> retransformClasses = new LinkedList<Class>();
+        Class[] loadedClasses = inst.getAllLoadedClasses();
+        for (Class clazz : loadedClasses) {
+            if (isClassMatched(clazz.getName().replace(".", "/"))) {
+                if (inst.isModifiableClass(clazz) && !clazz.getName().startsWith("java.lang.invoke.LambdaForm")) {
+                    retransformClasses.add(clazz);
+                }
+            }
+        }
+        // hook已经加载的类，或者是回滚已经加载的类
+        Class[] classes = new Class[retransformClasses.size()];
+        retransformClasses.toArray(classes);
+        if (classes.length > 0) {
+            inst.retransformClasses(classes);
+        }
     }
 
     private void addHook(AbstractClassHook hook, String className) {
@@ -76,7 +108,9 @@ public class CustomClassTransformer implements ClassFileTransformer {
                     addHook((AbstractClassHook) object, clazz.getName());
                 }
             } catch (Exception e) {
-                LOGGER.error("add hook failed", e);
+                String message = "add hook failed";
+                int errorCode = ErrorType.HOOK_ERROR.getCode();
+                LOGGER.error(CloudUtils.getExceptionObject(message, errorCode), e);
             }
         }
     }
@@ -109,25 +143,25 @@ public class CustomClassTransformer implements ClassFileTransformer {
                 }
             }
         }
-        handleClassLoader(loader, className);
+
+        serverDetector.detectServer(className, loader, domain);
         return classfileBuffer;
+    }
+
+    public boolean isClassMatched(String className) {
+        for (final AbstractClassHook hook : getHooks()) {
+            if (hook.isClassMatched(className)) {
+                return true;
+            }
+        }
+        return serverDetector.isClassMatched(className);
     }
 
     private void addLoader(ClassPool classPool, ClassLoader loader) {
         classPool.appendSystemPath();
+        classPool.appendClassPath(new ClassClassPath(ModuleLoader.class));
         if (loader != null) {
             classPool.appendClassPath(new LoaderClassPath(loader));
-        }
-    }
-
-    public static ClassLoader getClassLoader(String className) {
-        return classLoaderCache.get(className);
-    }
-
-    private static void handleClassLoader(ClassLoader loader, String className) {
-
-        if (list.contains(className)) {
-            classLoaderCache.put(className.replace('/', '.'), loader);
         }
     }
 

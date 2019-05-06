@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,22 +17,21 @@
 package com.baidu.openrasp.hook.sql;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.plugin.js.engine.JSContext;
 import com.baidu.openrasp.plugin.js.engine.JSContextFactory;
-import com.baidu.openrasp.tool.annotation.HookAnnotation;
-import com.baidu.openrasp.tool.LRUCache;
 import com.baidu.openrasp.tool.Reflection;
-
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.baidu.openrasp.tool.annotation.HookAnnotation;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 import javassist.NotFoundException;
 import org.mozilla.javascript.Scriptable;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 /**
  * Created by zhuming01 on 7/18/17.
@@ -40,16 +39,6 @@ import java.io.IOException;
  */
 @HookAnnotation
 public class SQLStatementHook extends AbstractSqlHook {
-
-    private static final String CONFIG_KEY_CACHE = "cache";
-    private static final String CONFIG_KEY_SQLI = "sqli";
-    private static final String CONFIG_KEY_CAPACITY = "capacity";
-    private static final int DEFAULT_LRU_CACHE_CAPACITY = 100;
-
-    /**
-     * sql缓存，保存最近检测无威胁的sql语句，缓存大小可配置
-     */
-    public static LRUCache<String, String> sqlCache = new LRUCache<String, String>(getLRUCacheSize());
 
     /**
      * (none-javadoc)
@@ -149,6 +138,10 @@ public class SQLStatementHook extends AbstractSqlHook {
                 "(Ljava/lang/String;)Ljava/sql/ResultSet;", checkSqlSrc);
         insertBefore(ctClass, "addBatch",
                 "(Ljava/lang/String;)V", checkSqlSrc);
+        addCatch(ctClass, "execute", null);
+        addCatch(ctClass, "executeUpdate", null);
+        addCatch(ctClass, "executeQuery", null);
+        addCatch(ctClass, "addBatch", null);
     }
 
     public static String getSqlConnectionId(String type, Object statement) {
@@ -175,7 +168,7 @@ public class SQLStatementHook extends AbstractSqlHook {
      * @param stmt sql语句
      */
     public static void checkSQL(String server, Object statement, String stmt) {
-        if (stmt != null && !stmt.isEmpty() && !sqlCache.isContainsKey(stmt)) {
+        if (stmt != null && !stmt.isEmpty() && !Config.commonLRUCache.isContainsKey(server.trim() + stmt.trim())) {
             JSContext cx = JSContextFactory.enterAndInitContext();
             Scriptable params = cx.newObject(cx.getScope());
             String connectionId = getSqlConnectionId(server, statement);
@@ -190,29 +183,34 @@ public class SQLStatementHook extends AbstractSqlHook {
     }
 
     /**
-     * 从js配置获取lru的缓存大小，如果返回为空，那么使用默认值。
+     * SQL执行异常检测
+     *
+     * @param server 数据库类型
+     * @param e      sql执行抛出的异常
      */
-    public static int getLRUCacheSize() {
-        try {
-            JsonObject config = Config.getConfig().getAlgorithmConfig();
-            if (config != null) {
-                JsonElement jsonElement = config.get(CONFIG_KEY_CACHE);
-                if (jsonElement != null) {
-                    JsonElement jsonSubElement = jsonElement.getAsJsonObject().get(CONFIG_KEY_SQLI);
-                    if (jsonSubElement != null) {
-                        JsonElement value = jsonSubElement.getAsJsonObject().get(CONFIG_KEY_CAPACITY);
-                        if (value != null) {
-                            return value.getAsInt();
-                        }
-
-                    }
-                }
-            }
-        } catch (Exception e) {
-
-            JSContext.LOGGER.warn("Parse json failed because: " + e.getMessage());
+    public static void checkSQLErrorCode(String server, SQLException e, Object[] object) {
+        //检测获取errorcode 获取异常的时候，打日志
+        if (e.getErrorCode() == 0) {
+            String message = "Get error code exceptions,check mysql version and database driver compatibility issues.";
+            int errorCode = ErrorType.HOOK_ERROR.getCode();
+            HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode));
+            return;
         }
-        return DEFAULT_LRU_CACHE_CAPACITY;
+        JSContext cx = JSContextFactory.enterAndInitContext();
+        Scriptable params = cx.newObject(cx.getScope());
+        params.put("server", params, server);
+        try {
+            if (object != null && object.length > 0) {
+                params.put("query", params, String.valueOf(object[0]));
+            } else {
+                params.put("query", params, "");
+            }
+        } catch (Exception e1) {
+            params.put("query", params, "");
+        }
+        params.put("error_code", params, String.valueOf(e.getErrorCode()));
+        String message = server + " error " + e.getErrorCode() + " detected: " + e.getMessage();
+        params.put("message", params, message);
+        HookHandler.doCheck(CheckParameter.Type.SQL_EXCEPTION, params);
     }
-
 }

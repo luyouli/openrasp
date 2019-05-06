@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,14 @@
  */
 
 #include "openrasp_hook.h"
+#include "openrasp_v8.h"
 
 /**
  * fileupload相关hook点
  */
-PRE_HOOK_FUNCTION(move_uploaded_file, fileUpload);
+PRE_HOOK_FUNCTION(move_uploaded_file, FILE_UPLOAD);
 
-void pre_global_move_uploaded_file_fileUpload(OPENRASP_INTERNAL_FUNCTION_PARAMETERS)
+void pre_global_move_uploaded_file_FILE_UPLOAD(OPENRASP_INTERNAL_FUNCTION_PARAMETERS)
 {
     zval **name, **dest;
     int argc = MIN(2, ZEND_NUM_ARGS());
@@ -34,12 +35,21 @@ void pre_global_move_uploaded_file_fileUpload(OPENRASP_INTERNAL_FUNCTION_PARAMET
         (PG(http_globals)[TRACK_VARS_FILES] || zend_is_auto_global(ZEND_STRL("_FILES") TSRMLS_CC)))
     {
         zval **realname = nullptr;
+        std::string form_data_name;
         HashTable *ht = Z_ARRVAL_P(PG(http_globals)[TRACK_VARS_FILES]);
         for (zend_hash_internal_pointer_reset(ht);
              zend_hash_has_more_elements(ht) == SUCCESS;
              zend_hash_move_forward(ht))
         {
+            char *key;
+            ulong idx;
+            int type;
             zval **file, **tmp_name;
+            type = zend_hash_get_current_key(ht, &key, &idx, 0);
+            if (type == HASH_KEY_NON_EXISTENT)
+            {
+                continue;
+            }
             if (zend_hash_get_current_data(ht, (void **)&file) != SUCCESS ||
                 Z_TYPE_PP(file) != IS_ARRAY ||
                 zend_hash_find(Z_ARRVAL_PP(file), ZEND_STRS("tmp_name"), (void **)&tmp_name) != SUCCESS ||
@@ -50,6 +60,15 @@ void pre_global_move_uploaded_file_fileUpload(OPENRASP_INTERNAL_FUNCTION_PARAMET
             }
             if (zend_hash_find(Z_ARRVAL_PP(file), ZEND_STRS("name"), (void **)&realname) == SUCCESS)
             {
+                if (type == HASH_KEY_IS_STRING)
+                {
+                    form_data_name = std::string(key);
+                }
+                else if (type == HASH_KEY_IS_LONG)
+                {
+                    long actual = idx;
+                    form_data_name = std::to_string(actual);
+                }
                 break;
             }
         }
@@ -65,13 +84,26 @@ void pre_global_move_uploaded_file_fileUpload(OPENRASP_INTERNAL_FUNCTION_PARAMET
             php_stream_close(stream);
             if (len > 0)
             {
-                zval *params;
-                MAKE_STD_ZVAL(params);
-                array_init(params);
-                add_assoc_zval(params, "filename", *realname);
-                Z_ADDREF_PP(realname);
-                add_assoc_stringl(params, "content", contents, MIN(len, 4 * 1024), 0);
-                check(check_type, params TSRMLS_CC);
+                openrasp::Isolate *isolate = OPENRASP_V8_G(isolate);
+                if (!isolate)
+                {
+                    efree(contents);
+                    return;
+                }
+                bool is_block = false;
+                {
+                    v8::HandleScope handle_scope(isolate);
+                    auto params = v8::Object::New(isolate);
+                    params->Set(openrasp::NewV8String(isolate, "name"), openrasp::NewV8String(isolate, form_data_name));
+                    params->Set(openrasp::NewV8String(isolate, "filename"), openrasp::NewV8String(isolate, Z_STRVAL_PP(realname), Z_STRLEN_PP(realname)));
+                    params->Set(openrasp::NewV8String(isolate, "content"), openrasp::NewV8String(isolate, contents, MIN(len, 4 * 1024)));
+                    efree(contents);
+                    is_block = isolate->Check(openrasp::NewV8String(isolate, get_check_type_name(check_type)), params, OPENRASP_CONFIG(plugin.timeout.millis));
+                }
+                if (is_block)
+                {
+                    handle_block(TSRMLS_C);
+                }
             }
         }
     }

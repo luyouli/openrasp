@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,10 +43,8 @@ ZEND_EXTERN_MODULE_GLOBALS(openrasp_inject);
 
 #ifdef ZTS
 #define OPENRASP_INJECT_G(v) TSRMG(openrasp_inject_globals_id, zend_openrasp_inject_globals *, v)
-#define OPENRASP_INJECT_GP() ((zend_openrasp_inject_globals *)(*((void ***)tsrm_ls))[TSRM_UNSHUFFLE_RSRC_ID(openrasp_inject_globals_id)])
 #else
 #define OPENRASP_INJECT_G(v) (openrasp_inject_globals.v)
-#define OPENRASP_INJECT_GP() (&openrasp_inject_globals)
 #endif
 
 PHP_MINIT_FUNCTION(openrasp_inject);

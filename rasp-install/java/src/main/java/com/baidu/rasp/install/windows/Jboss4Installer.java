@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,11 @@ public class Jboss4Installer extends BaseStandardInstaller {
 
     private static String OPENRASP_CONFIG =
             "rem BEGIN OPENRASP - DO NOT MODIFY" + LINE_SEP +
-            "set JAVA_OPTS=-javaagent:%JBOSS_HOME%\\rasp\\rasp.jar %JAVA_OPTS%" + LINE_SEP +
-            "set JAVA_OPTS=-Dlog4j.rasp.configuration=file:%JBOSS_HOME%\\rasp\\conf\\rasp-log4j.xml %JAVA_OPTS%" + LINE_SEP +
-            "rem END OPENRASP" + LINE_SEP;
+                    "set JAVA_OPTS=-javaagent:%JBOSS_HOME%\\rasp\\rasp.jar %JAVA_OPTS%" + LINE_SEP +
+                    "rem END OPENRASP" + LINE_SEP;
     private static Pattern OPENRASP_REGEX = Pattern.compile(".*(\\s*OPENRASP\\s*|JAVA_OPTS.*\\\\rasp\\\\).*");
 
-    Jboss4Installer(String serverName, String serverRoot) {
+    public Jboss4Installer(String serverName, String serverRoot) {
         super(serverName, serverRoot);
     }
 

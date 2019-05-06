@@ -9,6 +9,9 @@ plugin.register('sql', params => {
     return block
 })
 EOF;
+$conf = <<<CONF
+security.enforce_policy: false
+CONF;
 include(__DIR__.'/../skipif.inc');
 if (!extension_loaded("mysqli")) die("Skipped: mysqli extension required.");
 if (!extension_loaded("pdo")) die("Skipped: pdo extension required.");
@@ -18,11 +21,10 @@ mysqli_close($con);
 ?>
 --INI--
 openrasp.root_dir=/tmp/openrasp
-openrasp.enforce_policy=Off
 --FILE--
 <?php
 $con = new PDO('mysql:host=127.0.0.1;port=3306', 'root');
-$con->query('SELECT a FROM b')
+$con->query('SELECT a FROM b');
 ?>
 --EXPECTREGEX--
 <\/script><script>location.href="http[s]?:\/\/.*?request_id=[0-9a-f]{32}"<\/script>

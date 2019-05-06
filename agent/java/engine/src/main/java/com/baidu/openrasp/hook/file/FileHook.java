@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,16 @@
 package com.baidu.openrasp.hook.file;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.hook.AbstractClassHook;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.plugin.js.engine.JSContext;
 import com.baidu.openrasp.plugin.js.engine.JSContextFactory;
-import com.baidu.openrasp.tool.annotation.HookAnnotation;
 import com.baidu.openrasp.tool.StackTrace;
+import com.baidu.openrasp.tool.annotation.HookAnnotation;
+import com.google.gson.Gson;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 import javassist.NotFoundException;
@@ -76,7 +79,11 @@ public class FileHook extends AbstractClassHook {
      * @param file 文件对象
      */
     public static void checkListFiles(File file) {
+        boolean checkSwitch = Config.getConfig().getPluginFilter();
         if (file != null) {
+            if (checkSwitch && !file.exists()) {
+                return;
+            }
             Scriptable params = null;
             try {
                 JSContext cx = JSContextFactory.enterAndInitContext();
@@ -88,13 +95,17 @@ public class FileHook extends AbstractClassHook {
                 params.put("stack", params, stackArray);
                 try {
                     params.put("realpath", params, file.getCanonicalPath());
-                } catch (IOException e) {
+                } catch (Exception e) {
                     params.put("realpath", params, file.getAbsolutePath());
                 }
             } catch (Throwable t) {
-                HookHandler.LOGGER.warn(t.getMessage());
+                String message = t.getMessage();
+                int errorCode = ErrorType.HOOK_ERROR.getCode();
+                HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), t);
             }
-            if (params != null) {
+            String hookType = CheckParameter.Type.DIRECTORY.getName();
+            //如果在lru缓存中不进检测
+            if (params != null && !Config.commonLRUCache.isContainsKey(hookType + new Gson().toJson(params))) {
                 HookHandler.doCheck(CheckParameter.Type.DIRECTORY, params);
             }
         }

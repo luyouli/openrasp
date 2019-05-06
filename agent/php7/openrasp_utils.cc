@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,28 +17,37 @@
 #include "openrasp.h"
 #include "openrasp_ini.h"
 #include "openrasp_utils.h"
+#include "openrasp_log.h"
+#include "utils/debug_trace.h"
 extern "C"
 {
 #include "php_ini.h"
+#include "php_main.h"
+#include "php_streams.h"
+#include "zend_smart_str.h"
 #include "ext/pcre/php_pcre.h"
+#include "ext/standard/url.h"
 #include "ext/standard/file.h"
+#include "ext/json/php_json.h"
 #include "Zend/zend_builtin_functions.h"
 }
 #include <string>
 
-void format_debug_backtrace_str(zval *backtrace_str)
+using openrasp::DebugTrace;
+
+static std::vector<DebugTrace> build_debug_trace(long limit)
 {
     zval trace_arr;
+    std::vector<DebugTrace> array;
     zend_fetch_debug_backtrace(&trace_arr, 0, 0, 0);
     if (Z_TYPE(trace_arr) == IS_ARRAY)
     {
         int i = 0;
-        std::string buffer;
         HashTable *hash_arr = Z_ARRVAL(trace_arr);
         zval *ele_value = NULL;
         ZEND_HASH_FOREACH_VAL(hash_arr, ele_value)
         {
-            if (++i > openrasp_ini.log_maxstack)
+            if (++i > limit)
             {
                 break;
             }
@@ -46,92 +55,90 @@ void format_debug_backtrace_str(zval *backtrace_str)
             {
                 continue;
             }
+            DebugTrace trace_item;
             zval *trace_ele;
             if ((trace_ele = zend_hash_str_find(Z_ARRVAL_P(ele_value), ZEND_STRL("file"))) != NULL &&
                 Z_TYPE_P(trace_ele) == IS_STRING)
             {
-                buffer.append(Z_STRVAL_P(trace_ele), Z_STRLEN_P(trace_ele));
+                trace_item.set_file(Z_STRVAL_P(trace_ele));
             }
-            buffer.push_back('(');
             if ((trace_ele = zend_hash_str_find(Z_ARRVAL_P(ele_value), ZEND_STRL("function"))) != NULL &&
                 Z_TYPE_P(trace_ele) == IS_STRING)
             {
-                buffer.append(Z_STRVAL_P(trace_ele), Z_STRLEN_P(trace_ele));
+                trace_item.set_function(Z_STRVAL_P(trace_ele));
             }
-            buffer.push_back(':');
-            //line number
             if ((trace_ele = zend_hash_str_find(Z_ARRVAL_P(ele_value), ZEND_STRL("line"))) != NULL &&
                 Z_TYPE_P(trace_ele) == IS_LONG)
             {
-                buffer.append(std::to_string(Z_LVAL_P(trace_ele)));
+                trace_item.set_line(Z_LVAL_P(trace_ele));
             }
-            else
-            {
-                buffer.append("-1");
-            }
-            buffer.append(")\n");
+            array.push_back(trace_item);
         }
         ZEND_HASH_FOREACH_END();
-        if (buffer.length() > 0)
-        {
-            ZVAL_STRINGL(backtrace_str, buffer.c_str(), buffer.length() - 1);
-        }
-        else
-        {
-            ZVAL_STRING(backtrace_str, "");
-        }
     }
     zval_dtor(&trace_arr);
+    return array;
+}
+
+std::string format_debug_backtrace_str()
+{
+    std::vector<DebugTrace> trace = build_debug_trace(OPENRASP_CONFIG(log.maxstack));
+    std::string buffer;
+    for (DebugTrace &item : trace)
+    {
+        buffer.append(item.to_log_string() + "\n");
+    }
+    if (buffer.length() > 0)
+    {
+        buffer.pop_back();
+    }
+    return buffer;
+}
+
+void format_debug_backtrace_str(zval *backtrace_str)
+{
+    auto trace = format_debug_backtrace_str();
+    ZVAL_STRINGL(backtrace_str, trace.c_str(), trace.length());
+}
+
+std::vector<std::string> format_source_code_arr()
+{
+    std::vector<DebugTrace> trace = build_debug_trace(OPENRASP_CONFIG(log.maxstack));
+    std::vector<std::string> array;
+    for (DebugTrace &item : trace)
+    {
+        array.push_back(item.get_source_code());
+    }
+    return array;
+}
+
+void format_source_code_arr(zval *source_code_arr)
+{
+    auto array = format_source_code_arr();
+    for (auto &str : array)
+    {
+        add_next_index_stringl(source_code_arr, str.c_str(), str.length());
+    }
+}
+
+std::vector<std::string> format_debug_backtrace_arr()
+{
+    std::vector<DebugTrace> trace = build_debug_trace(OPENRASP_CONFIG(plugin.maxstack));
+    std::vector<std::string> array;
+    for (DebugTrace &item : trace)
+    {
+        array.push_back(item.to_plugin_string());
+    }
+    return array;
 }
 
 void format_debug_backtrace_arr(zval *backtrace_arr)
 {
-    zval trace_arr;
-    zend_fetch_debug_backtrace(&trace_arr, 0, 0, 0);
-    if (Z_TYPE(trace_arr) == IS_ARRAY)
+    auto array = format_debug_backtrace_arr();
+    for (auto &str : array)
     {
-        int i = 0;
-        HashTable *hash_arr = Z_ARRVAL(trace_arr);
-        zval *ele_value = NULL;
-        ZEND_HASH_FOREACH_VAL(hash_arr, ele_value)
-        {
-            if (++i > openrasp_ini.log_maxstack)
-            {
-                break;
-            }
-            if (Z_TYPE_P(ele_value) != IS_ARRAY)
-            {
-                continue;
-            }
-            std::string buffer;
-            zval *trace_ele;
-            if ((trace_ele = zend_hash_str_find(Z_ARRVAL_P(ele_value), ZEND_STRL("file"))) != NULL &&
-                Z_TYPE_P(trace_ele) == IS_STRING)
-            {
-                buffer.append(Z_STRVAL_P(trace_ele), Z_STRLEN_P(trace_ele));
-            }
-            if ((trace_ele = zend_hash_str_find(Z_ARRVAL_P(ele_value), ZEND_STRL("function"))) != NULL &&
-                Z_TYPE_P(trace_ele) == IS_STRING)
-            {
-                buffer.push_back('@');
-                buffer.append(Z_STRVAL_P(trace_ele), Z_STRLEN_P(trace_ele));
-            }
-            add_next_index_stringl(backtrace_arr, buffer.c_str(), buffer.length());
-        }
-        ZEND_HASH_FOREACH_END();
+        add_next_index_stringl(backtrace_arr, str.c_str(), str.length());
     }
-    zval_dtor(&trace_arr);
-}
-
-void openrasp_error(int type, int error_code, const char *format, ...)
-{
-    va_list arg;
-    char *message = nullptr;
-    va_start(arg, format);
-    vspprintf(&message, 0, format, arg);
-    va_end(arg);
-    zend_error(type, "[OpenRASP] %d %s", error_code, message);
-    efree(message);
 }
 
 int recursive_mkdir(const char *path, int len, int mode)
@@ -158,7 +165,7 @@ int recursive_mkdir(const char *path, int len, int mode)
         {
             return 1;
         }
-        openrasp_error(E_WARNING, CONFIG_ERROR, _("Could not create directory '%s': %s"), path, strerror(errno));
+        openrasp_error(LEVEL_WARNING, RUNTIME_ERROR, _("Could not create directory '%s': %s"), path, strerror(errno));
     }
     return 0;
 }
@@ -179,15 +186,7 @@ const char *fetch_url_scheme(const char *filename)
     return nullptr;
 }
 
-long fetch_time_offset()
-{
-    time_t t = time(NULL);
-    struct tm lt = {0};
-    localtime_r(&t, &lt);
-    return lt.tm_gmtoff;
-}
-
-void openrasp_scandir(const std::string dir_abs, std::vector<std::string> &plugins, std::function<bool(const char *filename)> file_filter)
+void openrasp_scandir(const std::string dir_abs, std::vector<std::string> &plugins, std::function<bool(const char *filename)> file_filter, bool use_abs_path)
 {
     DIR *dir;
     std::string result;
@@ -200,7 +199,7 @@ void openrasp_scandir(const std::string dir_abs, std::vector<std::string> &plugi
             {
                 if (file_filter(ent->d_name))
                 {
-                    plugins.push_back(std::string(ent->d_name));
+                    plugins.push_back(use_abs_path ? (dir_abs + std::string(1, DEFAULT_SLASH) + std::string(ent->d_name)) : std::string(ent->d_name));
                 }
             }
         }
@@ -208,54 +207,123 @@ void openrasp_scandir(const std::string dir_abs, std::vector<std::string> &plugi
     }
 }
 
-bool same_day_in_current_timezone(long src, long target, long offset)
+char *fetch_outmost_string_from_ht(HashTable *ht, const char *arKey)
 {
-    long day = 24 * 60 * 60;
-    return ((src + offset) / day == (target + offset) / day);
-}
-
-zend_string *openrasp_format_date(char *format, int format_len, time_t ts)
-{
-    char buffer[128];
-    struct tm *tm_info;
-
-    time(&ts);
-    tm_info = localtime(&ts);
-
-    strftime(buffer, 64, format, tm_info);
-    return zend_string_init(buffer, strlen(buffer), 0);
-}
-
-void openrasp_pcre_match(zend_string *regex, zend_string *subject, zval *return_value)
-{
-    pcre_cache_entry *pce;
-    zval *subpats = NULL;
-    zend_long flags = 0;
-    zend_long start_offset = 0;
-    int global = 0;
-
-    if (ZEND_SIZE_T_INT_OVFL(ZSTR_LEN(subject)))
+    zval *origin_zv;
+    if ((origin_zv = zend_hash_str_find(ht, arKey, strlen(arKey))) != nullptr &&
+        Z_TYPE_P(origin_zv) == IS_STRING)
     {
-        RETURN_FALSE;
+        return Z_STRVAL_P(origin_zv);
     }
-
-    if ((pce = pcre_get_compiled_regex_cache(regex)) == NULL)
-    {
-        RETURN_FALSE;
-    }
-
-    pce->refcount++;
-    php_pcre_match_impl(pce, ZSTR_VAL(subject), (int)ZSTR_LEN(subject), return_value, subpats,
-		global, 0, flags, start_offset);
-    pce->refcount--;
+    return nullptr;
 }
 
-long get_file_st_ino(std::string filename)
+bool get_entire_file_content(const char *file, std::string &content)
 {
-    struct stat sb;
-    if (VCWD_STAT(filename.c_str(), &sb) == 0 && (sb.st_mode & S_IFREG) != 0)
+    std::ifstream ifs(file, std::ifstream::in | std::ifstream::binary);
+    if (ifs.is_open() && ifs.good())
     {
-        return (long)sb.st_ino;
+        content = {std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
+        return true;
+    }
+    return false;
+}
+
+std::string json_encode_from_zval(zval *value)
+{
+    smart_str buf_json = {0};
+    php_json_encode(&buf_json, value, 0);
+    smart_str_0(&buf_json);
+    std::string result(ZSTR_VAL(buf_json.s));
+    smart_str_free(&buf_json);
+    return result;
+}
+
+zend_string *fetch_request_body(size_t max_len)
+{
+    php_stream *stream = php_stream_open_wrapper("php://input", "rb", 0, NULL);
+    if (!stream)
+    {
+        return zend_string_init("", strlen(""), 0);
+    }
+    zend_string *buf = php_stream_copy_to_mem(stream, max_len, 0);
+    php_stream_close(stream);
+    if (!buf)
+    {
+        return zend_string_init("", strlen(""), 0);
+    }
+    return buf;
+}
+
+bool need_alloc_shm_current_sapi()
+{
+    static const char *supported_sapis[] = {
+        "fpm-fcgi",
+        "apache2handler",
+        NULL};
+    const char **sapi_name;
+    if (sapi_module.name)
+    {
+        for (sapi_name = supported_sapis; *sapi_name; sapi_name++)
+        {
+            if (strcmp(sapi_module.name, *sapi_name) == 0)
+            {
+                return 1;
+            }
+        }
     }
     return 0;
+}
+
+std::string convert_to_header_key(char *key, size_t length)
+{
+    if (key == nullptr ||
+        strncmp(key, "HTTP_", 5) != 0)
+    {
+        return "";
+    }
+    std::string result(key + 5, length - 5);
+    for (auto &ch : result)
+    {
+        if (ch == '_')
+        {
+            ch = '-';
+        }
+        else
+        {
+            ch = std::tolower(ch);
+        }
+    }
+    return result;
+}
+
+bool openrasp_parse_url(const std::string &origin_url, std::string &scheme, std::string &host, std::string &port)
+{
+    php_url *url = php_url_parse_ex(origin_url.c_str(), origin_url.length());
+    if (url)
+    {
+        if (url->scheme)
+        {
+#if (PHP_MINOR_VERSION < 3)
+            scheme = std::string(url->scheme);
+#else
+            scheme = std::string(url->scheme->val, url->scheme->len);
+#endif
+        }
+        if (url->host)
+        {
+#if (PHP_MINOR_VERSION < 3)
+            host = std::string(url->host);
+#else
+            host = std::string(url->host->val, url->host->len);
+#endif
+        }
+        if (url->port)
+        {
+            port = std::to_string(url->port);
+        }
+        php_url_free(url);
+        return true;
+    }
+    return false;
 }

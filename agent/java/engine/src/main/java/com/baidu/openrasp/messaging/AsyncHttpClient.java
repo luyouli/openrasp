@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ public class AsyncHttpClient extends HttpClient {
     public AsyncHttpClient() {
         super();
         cpuCoreSize = Runtime.getRuntime().availableProcessors();
-        threadPool = new ThreadPoolExecutor(cpuCoreSize + 1, 5 * cpuCoreSize +1, 60L, TimeUnit.SECONDS,
+        threadPool = new ThreadPoolExecutor(cpuCoreSize + 1, 5 * cpuCoreSize + 1, 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(), new ThreadPoolExecutor.DiscardPolicy());
     }
 
@@ -47,6 +47,7 @@ public class AsyncHttpClient extends HttpClient {
 
     /**
      * 判断当阻塞队列size小于cpucore数目
+     *
      * @return
      */
     public boolean shouldSend() {

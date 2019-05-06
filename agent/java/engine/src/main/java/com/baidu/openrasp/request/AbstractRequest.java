@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@
 package com.baidu.openrasp.request;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.tool.Reflection;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.ByteArrayOutputStream;
-import java.io.CharArrayReader;
 import java.io.CharArrayWriter;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -68,7 +69,6 @@ public abstract class AbstractRequest {
 
     /**
      * constructor 测试时使用的构造函数
-     *
      */
     public AbstractRequest(int request) {
     }
@@ -242,6 +242,13 @@ public abstract class AbstractRequest {
     public abstract String getAppBasePath();
 
     /**
+     * 获取请求的contentType
+     *
+     * @return contentType
+     */
+    public abstract String getContentType();
+
+    /**
      * 获取自定义的clientip
      *
      * @return 自定义的clientip
@@ -326,6 +333,13 @@ public abstract class AbstractRequest {
         }
     }
 
+    /**
+     * 返回body的编码类型
+     *
+     * @return CharacterEncoding
+     */
+    public abstract String getCharacterEncoding();
+
     protected boolean setCharacterEncodingFromConfig() {
         try {
             String paramEncoding = Config.getConfig().getRequestParamEncoding();
@@ -334,7 +348,9 @@ public abstract class AbstractRequest {
                 return true;
             }
         } catch (Exception e) {
-            HookHandler.LOGGER.warn("set character encoding failed", e);
+            String message = "set character encoding failed";
+            int errorCode = ErrorType.RUNTIME_ERROR.getCode();
+            HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
         }
         return false;
     }

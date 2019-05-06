@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,13 @@
 package com.baidu.openrasp.hook.file;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.hook.AbstractClassHook;
 import com.baidu.openrasp.plugin.checker.CheckParameter;
 import com.baidu.openrasp.plugin.js.engine.JSContext;
 import com.baidu.openrasp.plugin.js.engine.JSContextFactory;
+import com.baidu.openrasp.tool.Reflection;
 import com.baidu.openrasp.tool.annotation.HookAnnotation;
 import javassist.CannotCompileException;
 import javassist.CtClass;
@@ -28,7 +31,6 @@ import javassist.NotFoundException;
 import org.mozilla.javascript.Scriptable;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
 /**
@@ -61,7 +63,7 @@ public class DiskFileItemHook extends AbstractClassHook {
     @Override
     protected void hookMethod(CtClass ctClass) throws IOException, CannotCompileException, NotFoundException {
         String src = getInvokeStaticSrc(DiskFileItemHook.class, "checkFileUpload",
-                "getName(),get()", String.class, byte[].class);
+                "getName(),get(),$0", String.class, byte[].class, Object.class);
         insertAfter(ctClass, "setHeaders", null, src, true);
     }
 
@@ -71,8 +73,8 @@ public class DiskFileItemHook extends AbstractClassHook {
      * @param name    文件名
      * @param content 文件数据
      */
-    public static void checkFileUpload(String name, byte[] content) {
-        if (name != null && content != null) {
+    public static void checkFileUpload(String name, byte[] content, Object file) {
+        if (name != null && content != null && file != null) {
             JSContext cx = JSContextFactory.enterAndInitContext();
             Scriptable params = cx.newObject(cx.getScope());
             params.put("filename", params, name);
@@ -80,10 +82,24 @@ public class DiskFileItemHook extends AbstractClassHook {
                 if (content.length > 4 * 1024) {
                     content = Arrays.copyOf(content, 4 * 1024);
                 }
-                params.put("content", params, new String(content, "UTF-8"));
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-                params.put("content", params, "[rasp error:" + e.getMessage() + "]");
+                String characterEncoding = "UTF-8";
+                if (HookHandler.requestCache.get() != null) {
+                    String encoding = HookHandler.requestCache.get().getCharacterEncoding();
+                    if (encoding != null && !encoding.isEmpty()) {
+                        characterEncoding = encoding;
+                    }
+                }
+                params.put("content", params, new String(content, characterEncoding));
+            } catch (Exception e) {
+                String message = e.getMessage();
+                int errorCode = ErrorType.HOOK_ERROR.getCode();
+                HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
+                params.put("content", params, "");
+            }
+            boolean isFiled = (Boolean) Reflection.invokeMethod(file, "isFormField", new Class[]{});
+            if (!isFiled) {
+                String fileName = Reflection.invokeStringMethod(file, "getFieldName", new Class[]{});
+                params.put("name", params, fileName != null ? fileName : "");
             }
 
             HookHandler.doCheck(CheckParameter.Type.FILEUPLOAD, params);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
 package com.baidu.openrasp.hook.sql;
 
 import com.baidu.openrasp.hook.AbstractClassHook;
+import javassist.*;
+
+import java.util.LinkedList;
 
 /**
  * Created by tyy on 17-11-6.
@@ -45,5 +48,23 @@ public abstract class AbstractSqlHook extends AbstractClassHook {
 
     public void setExceptions(String[] exceptions) {
         this.exceptions = exceptions;
+    }
+
+    /**
+     * 捕捉hook method抛出的异常
+     */
+    public void addCatch(CtClass ctClass, String methodName, String desc) throws NotFoundException, CannotCompileException {
+        //目前只支持对mysql的执行异常检测
+        if ("mysql".equals(type)) {
+            LinkedList<CtBehavior> methods = getMethod(ctClass, methodName, desc);
+            if (methods != null && methods.size() > 0) {
+                for (CtBehavior method : methods) {
+                    if (method != null) {
+                        String errorSrc = "com.baidu.openrasp.hook.sql.SQLStatementHook.checkSQLErrorCode(" + "\"" + type + "\"" + ",$e,$args);";
+                        method.addCatch("{" + errorSrc + " throw $e;}", ClassPool.getDefault().get("java.sql.SQLException"));
+                    }
+                }
+            }
+        }
     }
 }

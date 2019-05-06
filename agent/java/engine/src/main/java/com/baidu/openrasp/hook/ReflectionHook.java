@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,9 +99,9 @@ public class ReflectionHook extends AbstractClassHook {
                     }
                 }
             } finally {
-                if (params != null) {
+//                if (params != null) {
 //                    HookHandler.doCheckWithoutRequest(CheckParameter.Type.REFLECTION, params);
-                }
+//                }
                 HookHandler.enableCurrThreadHook();
             }
         }

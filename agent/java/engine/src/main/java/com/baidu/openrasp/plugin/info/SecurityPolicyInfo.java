@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package com.baidu.openrasp.plugin.info;
 
+import com.baidu.openrasp.cloud.model.CloudCacheModel;
 import com.baidu.openrasp.config.Config;
-import com.baidu.openrasp.request.HttpServletRequest;
 import com.baidu.openrasp.tool.OSUtil;
-import com.baidu.openrasp.tool.Reflection;
 import com.baidu.openrasp.tool.model.ApplicationModel;
 
 import java.text.SimpleDateFormat;
@@ -55,9 +54,9 @@ public class SecurityPolicyInfo extends EventInfo {
 
     private Type policy;
     private String message;
-    private Map<String, String> params;
+    private Map<String, Object> params;
 
-    public SecurityPolicyInfo(Type policy, String message, boolean isBlock, Map<String, String> params) {
+    public SecurityPolicyInfo(Type policy, String message, boolean isBlock, Map<String, Object> params) {
         this.policy = policy;
         this.message = message;
         this.params = params;
@@ -78,7 +77,7 @@ public class SecurityPolicyInfo extends EventInfo {
         Map<String, Object> info = new HashMap<String, Object>();
 
         info.put("event_type", getType());
-        info.put("event_time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(System.currentTimeMillis()));
+        info.put("event_time", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(System.currentTimeMillis()));
         // policy id
         info.put("policy_id", this.policy.toString());
         // 服务器host name
@@ -93,11 +92,17 @@ public class SecurityPolicyInfo extends EventInfo {
         info.put("message", message);
         // 检测参数信息
         if (params != null) {
-            info.put("params", params);
+            info.put("policy_params", params);
         }
         // 攻击调用栈
         StackTraceElement[] trace = filter(new Throwable().getStackTrace());
         info.put("stack_trace", stringify(trace));
+        if (Config.getConfig().getCloudSwitch()) {
+            // raspId
+            info.put("rasp_id", CloudCacheModel.getInstance().getRaspId());
+            // appId
+            info.put("app_id", Config.getConfig().getCloudAppId());
+        }
         return info;
     }
 

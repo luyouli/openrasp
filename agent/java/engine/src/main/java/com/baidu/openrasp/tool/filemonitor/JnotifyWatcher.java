@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,16 @@
 
 package com.baidu.openrasp.tool.filemonitor;
 
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.fuxi.javaagent.contentobjects.jnotify.Observer;
 import org.apache.log4j.Logger;
 
 /**
-　　* @Description: 监测并收集jnotify的内部错误，写入rasp.log
-　　* @author anyang
-　　* @date 2018/5/14 11:12
-　　*/
+ * 　　* @Description: 监测并收集jnotify的内部错误，写入rasp.log
+ * 　　* @author anyang
+ * 　　* @date 2018/5/14 11:12
+ */
 public class JnotifyWatcher implements Observer {
 
     private static final Logger LOGGER = Logger.getLogger(JnotifyWatcher.class.getName());
@@ -31,7 +33,9 @@ public class JnotifyWatcher implements Observer {
 
     @Override
     public void update(String s) {
-        this.message=s;
-        LOGGER.error("JNotify encounters an internal error :"+message);
+        this.message = s;
+        String message = "JNotify encounters an internal error";
+        int errorCode = ErrorType.FSWATCH_ERROR.getCode();
+        LOGGER.error(CloudUtils.getExceptionObject(message, errorCode));
     }
 }

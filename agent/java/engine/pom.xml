@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.baidu.openrasp</groupId>
         <artifactId>openrasp</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <properties>
@@ -15,7 +15,7 @@
     </properties>
 
     <artifactId>rasp-engine</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <repositories>
@@ -44,6 +44,11 @@
         </dependency>
         <dependency>
             <groupId>com.baidu.openrasp</groupId>
+            <artifactId>cmdparser</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.baidu.openrasp</groupId>
             <artifactId>rhino-shim</artifactId>
             <version>1.0</version>
         </dependency>
@@ -63,6 +68,11 @@
             <version>2.2</version>
         </dependency>
         <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.23</version>
+        </dependency>
+        <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <version>1.2.17</version>
@@ -75,7 +85,27 @@
         <dependency>
             <groupId>org.javassist</groupId>
             <artifactId>javassist</artifactId>
-            <version>3.21.0-GA</version>
+            <version>3.23.1-GA</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bitbucket.mstrobel</groupId>
+            <artifactId>procyon-core</artifactId>
+            <version>0.5.32</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bitbucket.mstrobel</groupId>
+            <artifactId>procyon-expressions</artifactId>
+            <version>0.5.32</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bitbucket.mstrobel</groupId>
+            <artifactId>procyon-reflection</artifactId>
+            <version>0.5.32</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bitbucket.mstrobel</groupId>
+            <artifactId>procyon-compilertools</artifactId>
+            <version>0.5.32</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package com.baidu.openrasp.hook.ssrf;
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.tool.annotation.HookAnnotation;
 import javassist.CannotCompileException;
 import javassist.CtClass;
@@ -27,7 +29,7 @@ import java.net.URI;
 
 /**
  * Created by tyy on 17-12-8.
- *
+ * <p>
  * httpclient 框架的请求 http 的 hook 点
  */
 @HookAnnotation
@@ -58,16 +60,23 @@ public class HttpClientHook extends AbstractSSRFHook {
     public static void checkHttpUri(URI uri) {
         String url = null;
         String hostName = null;
+        String port = "";
         try {
             if (uri != null) {
                 url = uri.toString();
                 hostName = uri.toURL().getHost();
+                int temp = uri.toURL().getPort();
+                if (temp > 0) {
+                    port = temp + "";
+                }
             }
         } catch (Throwable t) {
-            HookHandler.LOGGER.warn(t.getMessage());
+            String message = t.getMessage();
+            int errorCode = ErrorType.HOOK_ERROR.getCode();
+            HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), t);
         }
         if (hostName != null) {
-            checkHttpUrl(url, hostName, "httpclient");
+            checkHttpUrl(url, hostName, port, "httpclient");
         }
     }
 }

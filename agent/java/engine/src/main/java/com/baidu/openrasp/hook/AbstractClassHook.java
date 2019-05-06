@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package com.baidu.openrasp.hook;
 
 
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.config.Config;
 import javassist.*;
 import org.apache.commons.lang3.StringUtils;
@@ -74,9 +76,10 @@ public abstract class AbstractClassHook {
         try {
             hookMethod(ctClass);
             return ctClass.toBytecode();
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            e.printStackTrace();
             if (Config.getConfig().isDebugEnabled()) {
-                LOGGER.error("transform class " + ctClass.getName() + " failed", e);
+                LOGGER.info("transform class " + ctClass.getName() + " failed", e);
             }
         }
         return null;
@@ -129,7 +132,7 @@ public abstract class AbstractClassHook {
             }
         } else {
             if (Config.getConfig().isDebugEnabled()) {
-                LOGGER.warn("can not find method " + methodName + " " + desc + " in class " + ctClass.getName());
+                LOGGER.info("can not find method " + methodName + " " + desc + " in class " + ctClass.getName());
             }
         }
 
@@ -171,7 +174,7 @@ public abstract class AbstractClassHook {
             }
         } else {
             if (Config.getConfig().isDebugEnabled()) {
-                LOGGER.warn("can not find method " + methodName + " " + desc + " in class " + ctClass.getName());
+                LOGGER.info("can not find method " + methodName + " " + desc + " in class " + ctClass.getName());
             }
         }
 
@@ -201,7 +204,7 @@ public abstract class AbstractClassHook {
      * @return 所有符合要求的方法实例
      * @see javassist.bytecode.Descriptor
      */
-    private LinkedList<CtBehavior> getMethod(CtClass ctClass, String methodName, String desc) {
+    protected LinkedList<CtBehavior> getMethod(CtClass ctClass, String methodName, String desc) {
         if ("<init>".equals(methodName)) {
             return getConstructor(ctClass, desc);
         }
@@ -239,7 +242,7 @@ public abstract class AbstractClassHook {
             LOGGER.info("insert before method " + method.getLongName());
         } catch (CannotCompileException e) {
             if (Config.getConfig().isDebugEnabled()) {
-                LOGGER.error("insert before method " + method.getLongName() + " failed", e);
+                LOGGER.info("insert before method " + method.getLongName() + " failed", e);
             }
             throw e;
         }
@@ -267,7 +270,9 @@ public abstract class AbstractClassHook {
             method.insertAfter(src, asFinally);
             LOGGER.info("insert after method: " + method.getLongName());
         } catch (CannotCompileException e) {
-            LOGGER.error("insert after method " + method.getLongName() + " failed", e);
+            String message = "insert after method " + method.getLongName() + " failed";
+            int errorCode = ErrorType.HOOK_ERROR.getCode();
+            LOGGER.error(CloudUtils.getExceptionObject(message, errorCode), e);
             throw e;
         }
     }
@@ -309,11 +314,11 @@ public abstract class AbstractClassHook {
                 src += ",null);";
             }
             src = "try {" + src + "} catch (Throwable t) {if(t.getCause() != null && t.getCause().getClass()" +
-                    ".getName().equals(\"com.baidu.openrasp.exception.SecurityException\")){throw t;}}";
+                    ".getName().equals(\"com.baidu.openrasp.exceptions.SecurityException\")){throw t;}}";
         } else {
             src = invokeClassName + '.' + methodName + "(" + paramString + ");";
             src = "try {" + src + "} catch (Throwable t) {if(t.getClass()" +
-                    ".getName().equals(\"com.baidu.openrasp.exception.SecurityException\")){throw t;}}";
+                    ".getName().equals(\"com.baidu.openrasp.exceptions.SecurityException\")){throw t;}}";
         }
         return src;
     }

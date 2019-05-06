@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import com.baidu.rasp.uninstall.BaseStandardUninstaller;
 
 import java.io.File;
 import java.util.Scanner;
-import java.util.regex.Pattern;
 
 /**
  * @author anyang
@@ -28,8 +27,6 @@ import java.util.regex.Pattern;
  * @date 2018/4/25 19:34
  */
 public class TomcatUninstaller extends BaseStandardUninstaller {
-
-    private static Pattern OPENRASP_REGEX = Pattern.compile(".*(\\s*OPENRASP\\s*|JAVA_OPTS.*/rasp/).*");
 
     public TomcatUninstaller(String serverName, String serverRoot) {
         super(serverName, serverRoot);
@@ -50,12 +47,20 @@ public class TomcatUninstaller extends BaseStandardUninstaller {
     protected String recoverStartScript(String content) {
         StringBuilder sb = new StringBuilder();
         Scanner scanner = new Scanner(content);
+        boolean isDelete = false;
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine();
-            if (OPENRASP_REGEX.matcher(line).matches()) {
+            if (line.contains("BEGIN OPENRASP")) {
+                isDelete = true;
                 continue;
             }
-            sb.append(line).append(LINE_SEP);
+            if (line.contains("END OPENRASP")) {
+                isDelete = false;
+                continue;
+            }
+            if (!isDelete) {
+                sb.append(line).append(LINE_SEP);
+            }
         }
 
         return sb.toString();

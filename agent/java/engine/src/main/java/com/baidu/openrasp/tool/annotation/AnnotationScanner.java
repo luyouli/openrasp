@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package com.baidu.openrasp.tool.annotation;
 
-import com.baidu.openrasp.exception.AnnotationScannerException;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
+import com.baidu.openrasp.exceptions.AnnotationScannerException;
 import com.baidu.openrasp.transformer.CustomClassTransformer;
 
 import java.io.File;
@@ -62,13 +64,10 @@ public class AnnotationScanner {
                             }
                             if (name.startsWith(newPackageName)) {
                                 int index = name.lastIndexOf('/');
-                                if ((index != -1)) {
-                                    if (name.endsWith(".class") && !entry.isDirectory()) {
-                                        packageName = name.substring(0, index).replace('/', '.');
-                                        String className = name.substring(packageName.length() + 1, name.length() - 6);
-                                        classes.add(Class.forName(packageName + '.' + className));
-
-                                    }
+                                if ((index != -1) && name.endsWith(".class") && !entry.isDirectory()) {
+                                    packageName = name.substring(0, index).replace('/', '.');
+                                    String className = name.substring(packageName.length() + 1, name.length() - 6);
+                                    classes.add(Class.forName(packageName + '.' + className));
                                 }
                             }
                         }
@@ -77,7 +76,9 @@ public class AnnotationScanner {
                 }
             }
         } catch (Exception e) {
-            CustomClassTransformer.LOGGER.error("find and add class failed", e);
+            String message = "find and add class failed";
+            int errorCode = ErrorType.HOOK_ERROR.getCode();
+            CustomClassTransformer.LOGGER.error(CloudUtils.getExceptionObject(message, errorCode), e);
             throw new AnnotationScannerException(e);
         }
         for (Class clazz : classes) {
@@ -109,7 +110,9 @@ public class AnnotationScanner {
                     try {
                         classes.add(AnnotationScanner.class.getClassLoader().loadClass(packageName + '.' + className));
                     } catch (Exception e) {
-                        CustomClassTransformer.LOGGER.error("find and add class failed", e);
+                        String message = "find and add class failed";
+                        int errorCode = ErrorType.HOOK_ERROR.getCode();
+                        CustomClassTransformer.LOGGER.error(CloudUtils.getExceptionObject(message, errorCode), e);
                         throw new AnnotationScannerException(e);
 
                     }

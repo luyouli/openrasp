@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,12 @@ import com.baidu.openrasp.plugin.checker.AbstractChecker;
 public abstract class PolicyChecker extends AbstractChecker {
 
     public PolicyChecker() {
+        super();
+        addCheckEventListener(new PolicyCheckListener());
+    }
+
+    public PolicyChecker(boolean canBlock) {
+        super(canBlock);
         addCheckEventListener(new PolicyCheckListener());
     }
 

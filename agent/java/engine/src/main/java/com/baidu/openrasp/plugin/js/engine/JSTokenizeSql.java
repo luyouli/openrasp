@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +27,14 @@ import org.mozilla.javascript.Scriptable;
  */
 public class JSTokenizeSql extends BaseFunction {
     private static TokenizeErrorListener tokenizeErrorListener = new TokenizeErrorListener();
+
     /**
-     * @see BaseFunction#call(Context, Scriptable, Scriptable, Object[])
      * @param cx
      * @param scope
      * @param thisObj
      * @param args
      * @return
+     * @see BaseFunction#call(Context, Scriptable, Scriptable, Object[])
      */
     @Override
     public Object call(Context cx, Scriptable scope, Scriptable thisObj,
@@ -57,9 +58,10 @@ public class JSTokenizeSql extends BaseFunction {
     /**
      * 提供获取该对象默认值的方法
      * console.log(thisObj) 即会输出此方法返回的值
-     * @see Scriptable#getDefaultValue(Class)
+     *
      * @param hint
      * @return
+     * @see Scriptable#getDefaultValue(Class)
      */
     @Override
     public Object getDefaultValue(Class<?> hint) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,6 +95,14 @@ PHP_RINIT_FUNCTION(openrasp_inject)
         header.response_code = 0;
         sapi_header_op(SAPI_HEADER_REPLACE, &header);
     }
+    for (const auto &it : OPENRASP_CONFIG(inject.headers))
+    {
+        sapi_header_line header;
+        header.line = const_cast<char *>(it.c_str());
+        header.line_len = it.length();
+        header.response_code = 0;
+        sapi_header_op(SAPI_HEADER_REPLACE, &header);
+    }
     return SUCCESS;
 }
 PHP_RSHUTDOWN_FUNCTION(openrasp_inject)
@@ -102,7 +110,7 @@ PHP_RSHUTDOWN_FUNCTION(openrasp_inject)
     if (inject_html.size())
     {
         bool is_match_inject_prefix = false;
-        if (openrasp_ini.inject_html_urlprefix && strlen(openrasp_ini.inject_html_urlprefix) > 0)
+        if (!OPENRASP_CONFIG(inject.urlprefix).empty())
         {
             is_match_inject_prefix = false;
             if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER")))
@@ -110,7 +118,7 @@ PHP_RSHUTDOWN_FUNCTION(openrasp_inject)
                 zval *value;
                 if ((value = zend_hash_str_find(Z_ARRVAL(PG(http_globals)[TRACK_VARS_SERVER]), ZEND_STRL("REQUEST_URI"))) != NULL &&
                     Z_TYPE_P(value) == IS_STRING &&
-                    strncasecmp(Z_STRVAL_P(value), openrasp_ini.inject_html_urlprefix, strlen(openrasp_ini.inject_html_urlprefix)) == 0)
+                    strncasecmp(Z_STRVAL_P(value), OPENRASP_CONFIG(inject.urlprefix).c_str(), OPENRASP_CONFIG(inject.urlprefix).length()) == 0)
                 {
                     is_match_inject_prefix = true;
                 }
@@ -118,17 +126,9 @@ PHP_RSHUTDOWN_FUNCTION(openrasp_inject)
         }
         if (is_match_inject_prefix)
         {
-            char target_header[] = "text/html";
-            for (zend_llist_element *element = SG(sapi_headers).headers.head; element; element = element->next)
+            if (strncasecmp(SG(sapi_headers).mimetype, "text/html", sizeof("text/html") - 1) == 0)
             {
-                sapi_header_struct *sapi_header = (sapi_header_struct *)element->data;
-                if (sapi_header->header_len > 0 &&
-                    strncasecmp(sapi_header->header, "content-type", sizeof("content-type") - 1) == 0 &&
-                    php_stristr(sapi_header->header, target_header, sapi_header->header_len, strlen(target_header)) != nullptr)
-                {
-                    php_output_write(inject_html.data(), inject_html.size());
-                    break;
-                }
+                php_output_write(inject_html.data(), inject_html.size());
             }
         }
     }

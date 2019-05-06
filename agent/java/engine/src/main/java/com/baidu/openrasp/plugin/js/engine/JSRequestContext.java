@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,16 @@ package com.baidu.openrasp.plugin.js.engine;
 
 
 import com.baidu.openrasp.HookHandler;
+import com.baidu.openrasp.cloud.model.ErrorType;
+import com.baidu.openrasp.cloud.utils.CloudUtils;
 import com.baidu.openrasp.request.AbstractRequest;
 import com.baidu.openrasp.request.EmptyRequest;
-import com.baidu.openrasp.request.HttpServletRequest;
-import org.mozilla.javascript.*;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Function;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.annotations.JSConstructor;
 
 import java.io.ByteArrayOutputStream;
@@ -29,7 +35,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
 
+import static com.baidu.openrasp.cloud.utils.CloudUtils.getMapGsonObject;
+
 public class JSRequestContext extends ScriptableObject {
+    private static final String CONTENT_TYPE_JSON_VALUE = "application/json";
+
     private static Set<Object> properties = new HashSet<Object>(Arrays.asList(
             "path",
             "method",
@@ -37,6 +47,7 @@ public class JSRequestContext extends ScriptableObject {
             "querystring",
             "protocol",
             "body",
+            "json",
             "header",
             "parameter",
             "remoteAddr",
@@ -122,7 +133,9 @@ public class JSRequestContext extends ScriptableObject {
                 }
             });
         } catch (Exception e) {
-            HookHandler.LOGGER.warn("js failed to get body", e);
+            String message = "js failed to get body";
+            int errorCode = ErrorType.PLUGIN_ERROR.getCode();
+            HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
             return cx.newObject(scope);
         }
         return buffer;
@@ -177,4 +190,27 @@ public class JSRequestContext extends ScriptableObject {
         return server;
     }
 
+    public Object jsGet_json() {
+        Scriptable json = cx.newObject(scope);
+        byte[] body = javaContext.getBody();
+        if (body != null) {
+            String contentType = javaContext.getContentType();
+            if (contentType != null && contentType.startsWith(CONTENT_TYPE_JSON_VALUE)) {
+                try {
+                    JsonObject jsonObject = new JsonParser().parse(new String(body)).getAsJsonObject();
+                    Map<String, Object> map = getMapGsonObject().fromJson(jsonObject, Map.class);
+                    for (Map.Entry<String, Object> entry : map.entrySet()) {
+                        String key = entry.getKey();
+                        Object value = entry.getValue();
+                        json.put(key, json, value);
+                    }
+                } catch (Exception e) {
+                    String message = "failed to parse body to json";
+                    int errorCode = ErrorType.PLUGIN_ERROR.getCode();
+                    HookHandler.LOGGER.warn(CloudUtils.getExceptionObject(message, errorCode), e);
+                }
+            }
+        }
+        return json;
+    }
 }

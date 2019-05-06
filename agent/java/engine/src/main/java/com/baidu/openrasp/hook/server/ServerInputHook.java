@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import com.baidu.openrasp.hook.AbstractClassHook;
  *
  * 用于从服务器请求中获取 body 的 hook 点基类
  */
-public abstract class ServerInputHook extends AbstractClassHook{
+public abstract class ServerInputHook extends AbstractClassHook {
 
     /**
      * (none-javadoc)

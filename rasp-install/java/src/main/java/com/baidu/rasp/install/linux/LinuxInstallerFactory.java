@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.baidu.rasp.install.linux;
 
 import com.baidu.rasp.install.Installer;
 import com.baidu.rasp.install.InstallerFactory;
-import com.baidu.rasp.install.windows.*;
 
 /**
  * Created by OpenRASP on 5/19/17.
@@ -36,7 +35,16 @@ public class LinuxInstallerFactory extends InstallerFactory {
         if (serverName.equals(RESIN)) {
             return new com.baidu.rasp.install.windows.ResinInstaller(serverName, serverRoot);
         }
-        System.out.println("Invalid server name: " + serverName);
+        if (serverName.equals(WEBLOGIC)) {
+            return new WeblogicInstaller(serverName, serverRoot);
+        }
+        if (serverName.equals(WILDFLY)) {
+            return new WildflyInstaller(serverName, serverRoot);
+        }
+        if (serverName.equals(JBOSSEAP)) {
+            return new JbossEAPInstaller(serverName, serverRoot);
+        }
+        System.out.println("Unexpected server name: " + serverName);
         return null;
     }
 }

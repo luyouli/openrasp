@@ -2,6 +2,15 @@
 hook pcntl_exec (webshell)
 --SKIPIF--
 <?php
+if (!function_exists("pcntl_exec")) die("Skipped: pcntl is disabled.");
+$plugin = <<<EOF
+RASP.algorithmConfig = {
+    webshell_command: {
+        name:   '算法2 - 拦截简单的 PHP 命令执行后门',
+        action: 'block'
+    }
+}
+EOF;
 include(__DIR__.'/../skipif.inc');
 ?>
 --INI--

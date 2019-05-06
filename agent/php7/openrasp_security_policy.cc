@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #include "openrasp_security_policy.h"
 #include "openrasp_ini.h"
+#include <string>
 static void security_check(bool flag, int id, const char *msg);
 #define SECURITY_CHECK(flag, id, msg) security_check(flag, id, msg)
 #define STRTOBOOL strtobool
@@ -39,8 +40,13 @@ static void security_check(bool flag, int id, const char *msg)
         zval result;
         array_init(&result);
         add_assoc_long(&result, "policy_id", id);
+        zval policy_params;
+        array_init(&policy_params);
+        add_assoc_long(&policy_params, "pid", getpid());
+        add_assoc_string(&policy_params, "sapi", const_cast<char *>(sapi_module.name ? sapi_module.name : ""));
+        add_assoc_zval(&result, "policy_params", &policy_params);
         add_assoc_string(&result, "message", const_cast<char *>(msg));
-        policy_info(&result);
+        LOG_G(policy_logger).log(LEVEL_INFO, &result);
         zval_dtor(&result);
     }
 }

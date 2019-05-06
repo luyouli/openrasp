@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Baidu Inc.
+ * Copyright 2017-2019 Baidu Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,11 @@ import com.baidu.openrasp.config.Config;
 import com.baidu.openrasp.tool.Reflection;
 import com.baidu.openrasp.tool.model.ApplicationModel;
 
-import java.util.*;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -84,6 +88,16 @@ public final class HttpServletRequest extends AbstractRequest {
     /**
      * (none-javadoc)
      *
+     * @see AbstractRequest#getContentType()
+     */
+    @Override
+    public String getContentType() {
+        return Reflection.invokeStringMethod(request, "getContentType", EMPTY_CLASS);
+    }
+
+    /**
+     * (none-javadoc)
+     *
      * @see AbstractRequest#getContextPath()
      */
     @Override
@@ -139,7 +153,7 @@ public final class HttpServletRequest extends AbstractRequest {
      */
     @Override
     public String getParameter(String key) {
-        if (!canGetParameter) {
+        if (!(ApplicationModel.getServerName().equals("undertow") || canGetParameter)) {
             if (!setCharacterEncodingFromConfig()) {
                 return null;
             }
@@ -154,7 +168,8 @@ public final class HttpServletRequest extends AbstractRequest {
      */
     @Override
     public Enumeration<String> getParameterNames() {
-        if (!canGetParameter) {
+
+        if (!(ApplicationModel.getServerName().equals("undertow") || canGetParameter)) {
             if (!setCharacterEncodingFromConfig()) {
                 return null;
             }
@@ -171,14 +186,14 @@ public final class HttpServletRequest extends AbstractRequest {
     @Override
     public Map<String, String[]> getParameterMap() {
         Map<String, String[]> normalMap = new HashMap<String, String[]>();
-        if (!canGetParameter) {
+        if (ApplicationModel.getServerName().equals("undertow") || canGetParameter) {
+            normalMap = (Map<String, String[]>) Reflection.invokeMethod(request, "getParameterMap", EMPTY_CLASS);
+        } else {
             if (!setCharacterEncodingFromConfig()) {
                 normalMap = EMPTY_PARAM;
             }
-        } else {
-            normalMap = (Map<String, String[]>) Reflection.invokeMethod(request, "getParameterMap", EMPTY_CLASS);
         }
-        return getMergeMap(normalMap,fileUploadCache);
+        return getMergeMap(normalMap, fileUploadCache);
     }
 
     /**
@@ -247,12 +262,26 @@ public final class HttpServletRequest extends AbstractRequest {
     @Override
     public String getAppBasePath() {
         try {
-            String realPath = Reflection.invokeStringMethod(request, "getRealPath", new Class[]{String.class}, "/");
+            String realPath;
+            if ("weblogic".equals(ApplicationModel.getServerName())) {
+                realPath = getRealPathForWeblogic();
+            } else {
+                realPath = Reflection.invokeStringMethod(request, "getRealPath", new Class[]{String.class}, "/");
+            }
             return realPath == null ? "" : realPath;
         } catch (Exception e) {
-            e.printStackTrace();
             return "";
         }
+    }
+
+    /**
+     * (none-javadoc)
+     *
+     * @see AbstractRequest#getCharacterEncoding()
+     */
+    @Override
+    public String getCharacterEncoding() {
+        return Reflection.invokeStringMethod(request, "getCharacterEncoding", EMPTY_CLASS);
     }
 
     @Override
@@ -289,5 +318,15 @@ public final class HttpServletRequest extends AbstractRequest {
         s1 = Arrays.copyOf(s1, str1Length + str2length);
         System.arraycopy(s2, 0, s1, str1Length, str2length);
         return s1;
+    }
+
+    private String getRealPathForWeblogic() {
+        Object httpSession = Reflection.invokeMethod(request, "getSession", new Class[]{});
+        Object servletContext = Reflection.invokeMethod(httpSession, "getServletContext", new Class[]{});
+        URL url = (URL) Reflection.invokeMethod(servletContext, "getResource", new Class[]{String.class}, "/");
+        if (url != null) {
+            return url.getPath();
+        }
+        return null;
     }
 }
